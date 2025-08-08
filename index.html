@@ -10,7 +10,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Calculation Competition</h1>
+            <h1>🧮 Calculation Competition</h1>
             <p>Test your math skills and compete with others!</p>
         </div>
 
@@ -36,7 +36,7 @@
         <div id="mainMenu" class="card hidden">
             <div class="user-info">
                 <span>Welcome, <span id="currentUser"></span>!</span>
-                <span class="currency">💰<span id="userCurrency">0</span> coins</span>
+                <span class="currency">💰 <span id="userCurrency">0</span> coins</span>
                 <button class="btn" onclick="logout()">Logout</button>
             </div>
             
@@ -44,11 +44,11 @@
             
             <div class="mode-selection">
                 <div class="mode-card" onclick="selectMode('practice')">
-                    <h3>Practice Mode</h3>
+                    <h3>🏃 Practice Mode</h3>
                     <p>Practice your skills without any stakes</p>
                 </div>
                 <div class="mode-card" onclick="selectMode('competition')">
-                    <h3>Competition Mode</h3>
+                    <h3>🏆 Competition Mode</h3>
                     <p>Compete with others and win coins!</p>
                 </div>
             </div>
@@ -67,7 +67,8 @@
                     <input type="number" id="betAmount" min="1" max="1000" placeholder="Enter bet amount">
                 </div>
                 <div style="text-align: center;">
-                    <button class="btn" onclick="startCompetition()">Start Competition</button>
+                    <button class="btn" onclick="startCompetition()">Create Game Session</button>
+                    <button class="btn btn-success" onclick="joinSessionByCode()">Join Session</button>
                     <button class="btn btn-secondary" onclick="backToMenu()">Back</button>
                 </div>
             </div>
@@ -132,7 +133,7 @@
 
         <!-- Leaderboard Screen -->
         <div id="leaderboardScreen" class="card hidden">
-            <h2 style="text-align: center;">Leaderboard</h2>
+            <h2 style="text-align: center;">🏆 Leaderboard</h2>
             <div class="leaderboard" id="leaderboardContent">
                 Loading...
             </div>
