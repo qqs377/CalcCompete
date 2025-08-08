@@ -1,10 +1,3 @@
-if (!document.querySelector('#cancel-session-styles')) {
-    const styleElement = document.createElement('div');
-    styleElement.id = 'cancel-session-styles';
-    styleElement.innerHTML = additionalCSS;
-    document.head.appendChild(styleElement);
-}
-
 // Supabase configuration
 const SUPABASE_URL = 'https://dpopxtljjdkkzcnxwyfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3B4dGxqamRra3pjbnh3eWZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwODAyMjIsImV4cCI6MjA2OTY1NjIyMn0.udAGcJa2CjZfKec34_QL-uBymgu2g9x9mWRrelwr11I';
@@ -1142,6 +1135,13 @@ function showNotification(message) {
         notification.remove();
         style.remove();
     }, 3000);
+}
+
+if (!document.querySelector('#cancel-session-styles')) {
+    const styleElement = document.createElement('div');
+    styleElement.id = 'cancel-session-styles';
+    styleElement.innerHTML = additionalCSS;
+    document.head.appendChild(styleElement);
 }
 
 const additionalCSS = `
