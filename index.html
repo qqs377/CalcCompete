@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculation Competition Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.3/umd/supabase.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Calculation Competition</h1>
+            <p>Test your math skills and compete with others!</p>
+        </div>
+
+        <!-- Login Screen -->
+        <div id="loginScreen" class="card">
+            <h2 style="text-align: center; margin-bottom: 20px;">Login / Register</h2>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Enter your username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password">
+            </div>
+            <div style="text-align: center;">
+                <button class="btn" onclick="login()">Login</button>
+                <button class="btn btn-secondary" onclick="register()">Register</button>
+            </div>
+            <div id="loginError" class="error hidden"></div>
+        </div>
+
+        <!-- Main Menu -->
+        <div id="mainMenu" class="card hidden">
+            <div class="user-info">
+                <span>Welcome, <span id="currentUser"></span>!</span>
+                <span class="currency">💰<span id="userCurrency">0</span> coins</span>
+                <button class="btn" onclick="logout()">Logout</button>
+            </div>
+            
+            <h2 style="text-align: center; margin-bottom: 20px;">Choose Game Mode</h2>
+            
+            <div class="mode-selection">
+                <div class="mode-card" onclick="selectMode('practice')">
+                    <h3>Practice Mode</h3>
+                    <p>Practice your skills without any stakes</p>
+                </div>
+                <div class="mode-card" onclick="selectMode('competition')">
+                    <h3>Competition Mode</h3>
+                    <p>Compete with others and win coins!</p>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-success" onclick="showLeaderboard()">📊 View Leaderboard</button>
+            </div>
+        </div>
+
+        <!-- Competition Setup -->
+        <div id="competitionSetup" class="card hidden">
+            <h2 style="text-align: center;">Competition Setup</h2>
+            <div class="competition-setup">
+                <div class="form-group">
+                    <label for="betAmount">Bet Amount (coins):</label>
+                    <input type="number" id="betAmount" min="1" max="1000" placeholder="Enter bet amount">
+                </div>
+                <div style="text-align: center;">
+                    <button class="btn" onclick="startCompetition()">Start Competition</button>
+                    <button class="btn btn-secondary" onclick="backToMenu()">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="card hidden">
+            <div class="timer" id="timer">60</div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="correctCount">0</div>
+                    <div class="stat-label">Correct</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="accuracy">0%</div>
+                    <div class="stat-label">Accuracy</div>
+                </div>
+            </div>
+
+            <div class="game-area">
+                <div class="question" id="question">Loading...</div>
+                <div class="form-group">
+                    <input type="number" id="answerInput" class="answer-input" placeholder="Your answer" onkeypress="handleEnter(event)">
+                </div>
+                <button class="btn" onclick="submitAnswer()" id="submitBtn">Submit</button>
+                <div id="questionFeedback" class="question-feedback hidden"></div>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="resultsScreen" class="card hidden">
+            <h2 style="text-align: center;">Game Results</h2>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="finalCorrect">0</div>
+                    <div class="stat-label">Correct Answers</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="finalTotal">0</div>
+                    <div class="stat-label">Total Questions</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="finalAccuracy">0%</div>
+                    <div class="stat-label">Accuracy</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="finalScore">0</div>
+                    <div class="stat-label">Score</div>
+                </div>
+            </div>
+            <div id="competitionResult" class="hidden"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" onclick="backToMenu()">Back to Menu</button>
+                <button class="btn btn-success" onclick="showLeaderboard()">View Leaderboard</button>
+            </div>
+        </div>
+
+        <!-- Leaderboard Screen -->
+        <div id="leaderboardScreen" class="card hidden">
+            <h2 style="text-align: center;">Leaderboard</h2>
+            <div class="leaderboard" id="leaderboardContent">
+                Loading...
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" onclick="backToMenu()">Back to Menu</button>
+                <button class="btn btn-secondary" onclick="refreshLeaderboard()">Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
