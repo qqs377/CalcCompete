@@ -734,56 +734,52 @@ async function refreshLeaderboard() {
     try {
         document.getElementById('leaderboardContent').innerHTML = 'Loading...';
         
+        // Get all results, newest first (optional, but useful if scores tie)
         const { data: results, error } = await supabase
             .from('game_results')
             .select('*')
+            .order('score', { ascending: false })
             .order('created_at', { ascending: false });
-        
+
         if (error) {
             document.getElementById('leaderboardContent').innerHTML = 'Error loading leaderboard';
+            console.error('Error loading leaderboard:', error);
             return;
         }
-        
-        // Calculate weighted scores for each player
-        const playerStats = {};
-        
+
+        // Keep only highest score per player
+        const highestScores = {};
         results.forEach(result => {
-            if (!playerStats[result.username]) {
-                playerStats[result.username] = {
-                    totalCorrect: 0,
-                    totalAnswers: 0,
-                    totalScore: 0,
-                    gameCount: 0
-                };
+            if (!highestScores[result.username]) {
+                highestScores[result.username] = result; // first one is highest due to order
             }
-            
-            const stats = playerStats[result.username];
-            stats.totalCorrect += result.correct_answers;
-            stats.totalAnswers += result.total_answers;
-            stats.totalScore += result.score;
-            stats.gameCount++;
         });
-        
-        // Convert to leaderboard format and calculate weighted score
-        const leaderboard = Object.entries(playerStats).map(([username, stats]) => {
-            const accuracy = stats.totalAnswers > 0 ? (stats.totalCorrect / stats.totalAnswers) : 0;
-            const avgScore = stats.gameCount > 0 ? (stats.totalScore / stats.gameCount) : 0;
-            const weightedScore = Math.round(stats.totalCorrect * accuracy * 10 + avgScore);
-            
+
+        const filteredResults = Object.values(highestScores);
+
+        // Build leaderboard array
+        const leaderboard = filteredResults.map(result => {
+            const accuracy = result.total_answers > 0 
+                ? (result.correct_answers / result.total_answers) 
+                : 0;
+            const weightedScore = Math.round(
+                result.correct_answers * accuracy * 10 + result.score
+            );
+
             return {
-                username,
-                totalCorrect: stats.totalCorrect,
-                totalAnswers: stats.totalAnswers,
+                username: result.username,
+                totalCorrect: result.correct_answers,
+                totalAnswers: result.total_answers,
                 accuracy: Math.round(accuracy * 100),
-                avgScore: Math.round(avgScore),
+                avgScore: result.score, // highest score game
                 weightedScore
             };
         });
-        
+
         // Sort by weighted score
         leaderboard.sort((a, b) => b.weightedScore - a.weightedScore);
-        
-        // Display leaderboard
+
+        // Render leaderboard
         let html = '';
         leaderboard.forEach((player, index) => {
             html += `
@@ -797,10 +793,10 @@ async function refreshLeaderboard() {
                 </div>
             `;
         });
-        
-        document.getElementById('leaderboardContent').innerHTML = 
+
+        document.getElementById('leaderboardContent').innerHTML =
             html || '<div style="text-align: center; color: #666;">No games played yet</div>';
-            
+
     } catch (error) {
         document.getElementById('leaderboardContent').innerHTML = 'Error loading leaderboard';
         console.error('Error loading leaderboard:', error);
