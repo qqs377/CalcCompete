@@ -1,0 +1,2 @@
+# CalcCompete
+Calculation competition
