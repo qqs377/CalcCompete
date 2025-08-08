@@ -1,3 +1,10 @@
+if (!document.querySelector('#cancel-session-styles')) {
+    const styleElement = document.createElement('div');
+    styleElement.id = 'cancel-session-styles';
+    styleElement.innerHTML = additionalCSS;
+    document.head.appendChild(styleElement);
+}
+
 // Supabase configuration
 const SUPABASE_URL = 'https://dpopxtljjdkkzcnxwyfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3B4dGxqamRra3pjbnh3eWZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwODAyMjIsImV4cCI6MjA2OTY1NjIyMn0.udAGcJa2CjZfKec34_QL-uBymgu2g9x9mWRrelwr11I';
@@ -287,6 +294,14 @@ function subscribeToGameUpdates(sessionId) {
 function handleGameSessionUpdate(payload) {
     const session = payload.new;
     
+    if (session.status === 'cancelled') {
+        // Game session was cancelled
+        alert(`Game session cancelled by ${session.cancelled_by || 'the creator'}`);
+        cleanupGameSession();
+        showScreen('mainMenu');
+        return;
+    }
+    
     if (session.status === 'active' && currentSession.status === 'waiting') {
         // Game is starting
         currentSession = session;
@@ -301,6 +316,15 @@ function handleGameSessionUpdate(payload) {
 function handleParticipantUpdate(payload) {
     if (payload.eventType === 'INSERT') {
         updateWaitingScreen();
+    } else if (payload.eventType === 'DELETE') {
+        // Someone left the session
+        updateWaitingScreen();
+        
+        // If you're the creator and this was someone else leaving
+        if (currentUser.username === currentSession.creator && 
+            payload.old && payload.old.username !== currentUser.username) {
+            showNotification(`${payload.old.username} left the session`);
+        }
     } else if (payload.eventType === 'UPDATE') {
         updateGameProgress(payload.new);
     }
@@ -376,15 +400,32 @@ function generateSessionCode() {
 }
 
 function showWaitingScreen() {
-    // You'll need to add this screen to your HTML
+    const isCreator = currentUser.username === currentSession.creator;
+    
     const waitingHTML = `
         <div class="card" style="text-align: center;">
             <h2>Waiting for Players</h2>
             <p>Session Code: <strong>${gameSession.sessionCode}</strong></p>
             <p>Share this code with other players!</p>
             <div id="participantsList">Loading...</div>
-            <button class="btn" onclick="startGameForAll()" id="startGameBtn">Start Game</button>
-            <button class="btn btn-secondary" onclick="backToMenu()">Cancel</button>
+            
+            ${isCreator ? `
+                <button class="btn" onclick="startGameForAll()" id="startGameBtn" disabled>
+                    Start Game (Need at least 2 players)
+                </button>
+                <button class="btn btn-danger" onclick="cancelGameSession()" style="background: #dc3545; margin-left: 10px;">
+                    Cancel Session
+                </button>
+            ` : `
+                <p style="color: #666; font-style: italic;">Waiting for ${currentSession.creator} to start the game...</p>
+                <button class="btn btn-danger" onclick="leaveGameSession()" style="background: #dc3545;">
+                    Leave Session
+                </button>
+            `}
+            
+            <button class="btn btn-secondary" onclick="backToMenu()" style="margin-top: 10px;">
+                Back to Menu
+            </button>
         </div>
     `;
     
@@ -950,13 +991,175 @@ async function joinSessionByCode() {
 
 // Navigation functions
 function backToMenu() {
-    // Clean up real-time subscription
+    if (currentSession && currentSession.status === 'waiting') {
+        // If in a waiting session, ask for confirmation
+        const isCreator = currentUser.username === currentSession.creator;
+        const message = isCreator 
+            ? 'Leaving will cancel the session for all players. Continue?' 
+            : 'Are you sure you want to leave this session?';
+            
+        if (confirm(message)) {
+            if (isCreator) {
+                cancelGameSession();
+            } else {
+                leaveGameSession();
+            }
+        }
+        return;
+    }
+    
+    // Clean up any existing session data
+    cleanupGameSession();
+    showScreen('mainMenu');
+}
+
+
+// Cancel game session (for creators)
+async function cancelGameSession() {
+    if (!currentSession || currentUser.username !== currentSession.creator) {
+        alert('Only the session creator can cancel the game');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to cancel this game session? All participants will be notified.')) {
+        return;
+    }
+    
+    try {
+        // Update session status to cancelled
+        const { error: sessionError } = await supabase
+            .from('game_sessions')
+            .update({ 
+                status: 'cancelled',
+                cancelled_at: new Date().toISOString(),
+                cancelled_by: currentUser.username
+            })
+            .eq('id', currentSession.id);
+            
+        if (sessionError) throw sessionError;
+        
+        // Notify all participants via real-time update
+        // (This will trigger the handleGameSessionUpdate function for all subscribed clients)
+        
+        // Clean up and return to menu
+        await cleanupGameSession();
+        alert('Game session cancelled successfully');
+        showScreen('mainMenu');
+        
+    } catch (error) {
+        console.error('Error cancelling session:', error);
+        alert('Failed to cancel session: ' + error.message);
+    }
+}
+
+// Leave game session (for participants)
+async function leaveGameSession() {
+    if (!currentSession) return;
+    
+    const isCreator = currentUser.username === currentSession.creator;
+    const confirmMessage = isCreator 
+        ? 'As the creator, leaving will cancel the entire session. Continue?' 
+        : 'Are you sure you want to leave this game session?';
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        if (isCreator) {
+            // If creator leaves, cancel the entire session
+            await cancelGameSession();
+            return;
+        }
+        
+        // Remove participant from the session
+        const { error } = await supabase
+            .from('game_participants')
+            .delete()
+            .eq('session_id', currentSession.id)
+            .eq('username', currentUser.username);
+            
+        if (error) throw error;
+        
+        // Clean up and return to menu
+        await cleanupGameSession();
+        alert('Left game session successfully');
+        showScreen('mainMenu');
+        
+    } catch (error) {
+        console.error('Error leaving session:', error);
+        alert('Failed to leave session: ' + error.message);
+    }
+}
+
+// Clean up game session data and subscriptions
+async function cleanupGameSession() {
+    // Unsubscribe from real-time updates
     if (realtimeSubscription) {
         supabase.removeChannel(realtimeSubscription);
         realtimeSubscription = null;
     }
     
+    // Reset session data
     currentSession = null;
+    gameSession.sessionCode = null;
     gameSession.isMultiplayer = false;
-    showScreen('mainMenu');
+    gameSession.betAmount = 0;
 }
+
+// Utility function to show temporary notifications
+function showNotification(message) {
+    // Create a temporary notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4facfe;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+        style.remove();
+    }, 3000);
+}
+
+const additionalCSS = `
+<style>
+.btn-danger {
+    background: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+.btn-danger:hover {
+    background: #c82333 !important;
+    border-color: #bd2130 !important;
+}
+
+.btn-danger:disabled {
+    background: #6c757d !important;
+    border-color: #6c757d !important;
+    cursor: not-allowed;
+}
+</style>
+`;
