@@ -1138,29 +1138,3 @@ function showNotification(message) {
     }, 3000);
 }
 
-if (!document.querySelector('#cancel-session-styles')) {
-    const styleElement = document.createElement('div');
-    styleElement.id = 'cancel-session-styles';
-    styleElement.innerHTML = additionalCSS;
-    document.head.appendChild(styleElement);
-}
-
-const additionalCSS = `
-<style>
-.btn-danger {
-    background: #dc3545 !important;
-    border-color: #dc3545 !important;
-}
-
-.btn-danger:hover {
-    background: #c82333 !important;
-    border-color: #bd2130 !important;
-}
-
-.btn-danger:disabled {
-    background: #6c757d !important;
-    border-color: #6c757d !important;
-    cursor: not-allowed;
-}
-</style>
-`;
