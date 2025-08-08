@@ -1,7 +1,38 @@
 // Supabase configuration
 const SUPABASE_URL = 'https://dpopxtljjdkkzcnxwyfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3B4dGxqamRra3pjbnh3eWZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwODAyMjIsImV4cCI6MjA2OTY1NjIyMn0.udAGcJa2CjZfKec34_QL-uBymgu2g9x9mWRrelwr11I';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Initialize Supabase client after the library loads
+let supabase;
+
+// Wait for Supabase to load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Supabase client - try multiple approaches
+    try {
+        if (typeof window.supabase !== 'undefined') {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else if (typeof supabase !== 'undefined' && supabase.createClient) {
+            supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+            throw new Error('Supabase library not found');
+        }
+        console.log('Supabase initialized successfully');
+        showScreen('loginScreen');
+    } catch (error) {
+        console.error('Failed to initialize Supabase:', error);
+        // Show error message to user
+        document.body.innerHTML = `
+            <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                <h2>Connection Error</h2>
+                <p>Failed to load the database connection.</p>
+                <p>Please refresh the page or try again later.</p>
+                <button onclick="location.reload()" style="padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Refresh Page
+                </button>
+            </div>
+        `;
+    }
+});
 
 // Game state
 let currentUser = null;
@@ -22,9 +53,7 @@ let gameSession = {
 };
 
 // Initialize the game
-document.addEventListener('DOMContentLoaded', function() {
-    showScreen('loginScreen');
-});
+// (Removed DOMContentLoaded listener since it's now above)
 
 function showScreen(screenId) {
     const screens = ['loginScreen', 'mainMenu', 'competitionSetup', 'gameScreen', 'resultsScreen', 'leaderboardScreen'];
