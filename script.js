@@ -168,6 +168,8 @@ function logout() {
 function selectMode(mode) {
     gameMode = mode;
     if (mode === 'practice') {
+        gameSession.betAmount = 0; // Ensure no bet for practice mode
+        gameSession.isMultiplayer = false;
         startGame();
     } else {
         showScreen('competitionSetup');
@@ -231,12 +233,13 @@ async function createGameSession() {
 
 async function joinGameSession(sessionId) {
     try {
-        // Add user to participants
+        // Add user to participants with their bet amount
         const { error } = await supabase
             .from('game_participants')
             .insert([{
                 session_id: sessionId,
-                username: currentUser.username
+                username: currentUser.username,
+                bet_amount: gameSession.betAmount
             }]);
 
         if (error) throw error;
@@ -393,23 +396,52 @@ async function updateWaitingScreen() {
     try {
         const { data: participants, error } = await supabase
             .from('game_participants')
-            .select('username')
+            .select('username, bet_amount')
             .eq('session_id', currentSession.id);
 
         if (error) throw error;
 
         const participantsList = document.getElementById('participantsList');
         if (participantsList) {
-            participantsList.innerHTML = `
+            // Calculate the final bet (minimum among all participants)
+            const betAmounts = participants.map(p => p.bet_amount);
+            const finalBet = betAmounts.length > 0 ? Math.min(...betAmounts) : currentSession.bet_amount;
+            
+            let participantsHTML = `
                 <h3>Players (${participants.length}):</h3>
-                ${participants.map(p => `<div>• ${p.username}</div>`).join('')}
+                <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin: 15px 0; border: 2px solid #4facfe;">
+                    <strong>📊 Final Bet: ${finalBet} coins per player</strong>
+                    <p style="font-size: 0.9em; color: #666; margin: 5px 0 0 0;">
+                        (Based on the lowest bet among all players)
+                    </p>
+                </div>
+                <div style="text-align: left;">
             `;
+            
+            participants.forEach(p => {
+                const isLowestBet = p.bet_amount === finalBet;
+                participantsHTML += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee;">
+                        <span>• ${p.username}</span>
+                        <span style="color: ${isLowestBet ? '#4caf50' : '#666'}; font-weight: ${isLowestBet ? 'bold' : 'normal'};">
+                            ${p.bet_amount} coins ${isLowestBet ? '(Final Bet)' : ''}
+                        </span>
+                    </div>
+                `;
+            });
+            
+            participantsHTML += '</div>';
+            participantsList.innerHTML = participantsHTML;
         }
 
         // Enable start button only for creator with at least 2 players
         const startBtn = document.getElementById('startGameBtn');
         if (startBtn && currentUser.username === currentSession.creator) {
             startBtn.disabled = participants.length < 2;
+            if (participants.length >= 2) {
+                const finalBet = Math.min(...participants.map(p => p.bet_amount));
+                startBtn.textContent = `Start Game (${finalBet} coins per player)`;
+            }
         }
 
     } catch (error) {
@@ -606,10 +638,15 @@ async function saveGameResult(score, accuracy) {
 }
 
 async function handleCompetitionResult(score) {
+    // Only handle currency changes for actual competition mode, not practice
+    if (gameMode !== 'competition' || gameSession.betAmount === 0) {
+        return;
+    }
+    
     try {
         const betAmount = gameSession.betAmount;
         
-        // For simplicity, in single-player competition mode, 
+        // For single-player competition mode, 
         // win condition: score > 500 (you can adjust this)
         const isWinner = score > 500;
         
@@ -797,12 +834,27 @@ async function finishMultiplayerGame() {
 
 async function handleMultiplayerResults(participants) {
     try {
+        // Get all participants' bet amounts from the database
+        const { data: sessionParticipants, error } = await supabase
+            .from('game_participants')
+            .select('username, bet_amount')
+            .eq('session_id', currentSession.id);
+            
+        if (error) throw error;
+        
+        // Find the lowest bet amount among all participants
+        const betAmounts = sessionParticipants.map(p => p.bet_amount);
+        const finalBetAmount = Math.min(...betAmounts);
+        
+        console.log(`Final bet amount (lowest): ${finalBetAmount} coins`);
+        
         // Sort by score to determine winner
         participants.sort((a, b) => b.score - a.score);
         const winner = participants[0];
-        const totalPot = participants.length * gameSession.betAmount;
+        const loserCount = participants.length - 1;
+        const totalWinnings = finalBetAmount * loserCount; // Winner gets all losers' bets
         
-        // Update currencies
+        // Update currencies for all participants
         for (const participant of participants) {
             const { data: user } = await supabase
                 .from('users_v3')
@@ -812,11 +864,11 @@ async function handleMultiplayerResults(participants) {
                 
             let newAmount;
             if (participant.username === winner.username) {
-                // Winner gets the pot minus their bet (so net gain is others' bets)
-                newAmount = user.pomodoro_count + totalPot - gameSession.betAmount;
+                // Winner gets total winnings (doesn't lose their own bet)
+                newAmount = user.pomodoro_count + totalWinnings;
             } else {
-                // Losers lose their bet
-                newAmount = Math.max(0, user.pomodoro_count - gameSession.betAmount);
+                // Losers lose the final bet amount (not their original bet)
+                newAmount = Math.max(0, user.pomodoro_count - finalBetAmount);
             }
             
             await supabase
@@ -825,17 +877,16 @@ async function handleMultiplayerResults(participants) {
                 .eq('username', participant.username);
         }
         
-        // Show results
+        // Show results based on whether current user won or lost
         if (currentUser.username === winner.username) {
-            const winnings = totalPot - gameSession.betAmount;
             document.getElementById('competitionResult').innerHTML = 
-                `<div class="success">🎉 You won! Earned ${winnings} coins!</div>`;
+                `<div class="success">🎉 You won! Earned ${totalWinnings} coins! (Final bet was ${finalBetAmount} coins per player)</div>`;
         } else {
             document.getElementById('competitionResult').innerHTML = 
-                `<div class="error">😔 You lost ${gameSession.betAmount} coins. Winner: ${winner.username}</div>`;
+                `<div class="error">😔 You lost ${finalBetAmount} coins. Winner: ${winner.username} (Final bet was ${finalBetAmount} coins per player)</div>`;
         }
         
-        // Update displayed currency
+        // Update displayed currency for current user
         const { data: updatedUser } = await supabase
             .from('users_v3')
             .select('pomodoro_count')
@@ -869,14 +920,22 @@ async function joinSessionByCode() {
             return;
         }
         
+        // Ask for bet amount
+        const betAmount = parseInt(prompt(`Enter your bet amount (coins):\n\nNote: The final bet will be the lowest amount among all players.`));
+        
+        if (!betAmount || betAmount < 1) {
+            alert('Please enter a valid bet amount');
+            return;
+        }
+        
         // Check if user has enough coins
-        if (session.bet_amount > currentUser.pomodoro_count) {
-            alert('You don\'t have enough coins for this session!');
+        if (betAmount > currentUser.pomodoro_count) {
+            alert('You don\'t have enough coins!');
             return;
         }
         
         currentSession = session;
-        gameSession.betAmount = session.bet_amount;
+        gameSession.betAmount = betAmount; // Store user's bet amount
         gameSession.sessionCode = session.session_code;
         gameSession.questions = session.questions;
         gameSession.isMultiplayer = true;
