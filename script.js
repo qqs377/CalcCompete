@@ -55,6 +55,11 @@ let gameSession = {
 // Initialize the game
 // (Removed DOMContentLoaded listener since it's now above)
 
+    document.body.style.backgroundImage = "url('images/background1.png')";
+    document.body.style.backgroundSize = "cover";
+    document.body.style.backgroundPosition = "center";
+    document.body.style.backgroundRepeat = "no-repeat";
+
 function showScreen(screenId) {
     const screens = ['loginScreen', 'mainMenu', 'competitionSetup', 'gameScreen', 'resultsScreen', 'leaderboardScreen'];
     screens.forEach(screen => {
@@ -406,12 +411,12 @@ function showWaitingScreen() {
                 <button class="btn" onclick="startGameForAll()" id="startGameBtn" disabled>
                     Start Game (Need at least 2 players)
                 </button>
-                <button class="btn btn-danger" onclick="cancelGameSession()" style="background: #dc3545; margin-left: 10px;">
+                <button class="btn btn-danger" onclick="cancelGameSession()" style=": #dc3545; margin-left: 10px;">
                     Cancel Session
                 </button>
             ` : `
                 <p style="color: #666; font-style: italic;">Waiting for ${currentSession.creator} to start the game...</p>
-                <button class="btn btn-danger" onclick="leaveGameSession()" style="background: #dc3545;">
+                <button class="btn btn-danger" onclick="leaveGameSession()" style=": #dc3545;">
                     Leave Session
                 </button>
             `}
@@ -443,7 +448,7 @@ async function updateWaitingScreen() {
             
             let participantsHTML = `
                 <h3>Players (${participants.length}):</h3>
-                <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin: 15px 0; border: 2px solid #4facfe;">
+                <div style=": #f0f8ff; padding: 15px; border-radius: 8px; margin: 15px 0; border: 2px solid #4facfe;">
                     <strong>📊 Final Bet: ${finalBet} coins per player</strong>
                     <p style="font-size: 0.9em; color: #666; margin: 5px 0 0 0;">
                         (Based on the lowest bet among all players)
