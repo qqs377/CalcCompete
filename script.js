@@ -109,58 +109,6 @@ async function login() {
     }
 }
 
-async function register() {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value.trim();
-
-    if (!username || !password) {
-        showError('loginError', 'Please enter both username and password');
-        return;
-    }
-
-    if (username.length < 3 || password.length < 3) {
-        showError('loginError', 'Username and password must be at least 3 characters long');
-        return;
-    }
-
-    try {
-        // Check if username already exists
-        const { data: existingUser } = await supabase
-            .from('users_v3')
-            .select('username')
-            .eq('username', username)
-            .single();
-
-        if (existingUser) {
-            showError('loginError', 'Username already exists');
-            return;
-        }
-
-        // Create new user (pomodoro_count will use existing value or default from database)
-        const { data, error } = await supabase
-            .from('users_v3')
-            .insert([
-                { 
-                    username: username, 
-                    password: password
-                }
-            ])
-            .select()
-            .single();
-
-        if (error) {
-            showError('loginError', 'Registration failed. Please try again.');
-            return;
-        }
-
-        currentUser = data;
-        document.getElementById('currentUser').textContent = currentUser.username;
-        document.getElementById('userCurrency').textContent = currentUser.pomodoro_count;
-        showScreen('mainMenu');
-    } catch (error) {
-        showError('loginError', 'Registration failed. Please try again.');
-    }
-}
 
 function logout() {
     currentUser = null;
